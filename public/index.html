@@ -53,7 +53,7 @@ const r=await fetch('/info',{method:'POST',headers:{'Content-Type':'application/
 const d=await r.json();if(d.error)throw new Error(d.error);
 const d2=await fetch('/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
 const dl=await d2.json();
-box.innerHTML='<div class="card">'+(d.thumbnail?'<img src="'+d.thumbnail+'">':'')+'<div class="info"><div class="title">'+(d.title||'Unknown')+'</div><div class="meta">'+(d.uploader||'')+'</div></div><a class="dl" href="'+dl.url+'" target="_blank">Download</a></div>';
+box.innerHTML='<div class="card">'+(d.thumbnail?'<img src="'+d.thumbnail+'">':'')+'<div class="info"><div class="title">'+(d.title||'Unknown')+'</div><div class="meta">'+(d.uploader||'')+'</div></div><a class="dl" href="/proxy?url='+encodeURIComponent(dl.url)+'&filename='+encodeURIComponent((d.title||'video').replace(/[^a-zA-Z0-9 ]/g,'').slice(0,50)+'.mp4')+'">Download</a></div>';
 }catch(e){box.innerHTML='<div class="error">'+e.message+'</div>';}
 }
 </script>
