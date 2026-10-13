@@ -4,12 +4,16 @@ const { execFile } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const YTDLP_BIN = path.join(__dirname, "bin", "yt-dlp");
 
+
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
+
 
 function runYtDlp(args) {
   return new Promise((resolve, reject) => {
@@ -20,9 +24,11 @@ function runYtDlp(args) {
   });
 }
 
+
 app.get("/", (req, res) => {
   res.json({ status: "ok", service: "ytdlp-api", version: "1.0.0" });
 });
+
 
 app.post("/info", async (req, res) => {
   const { url } = req.body;
@@ -45,6 +51,7 @@ app.post("/info", async (req, res) => {
   }
 });
 
+
 app.post("/download", async (req, res) => {
   const { url, format = "best" } = req.body;
   if (!url) return res.status(400).json({ error: "url is required" });
@@ -56,4 +63,6 @@ app.post("/download", async (req, res) => {
   }
 });
 
+
 app.listen(PORT, () => console.log(`yt-dlp API on ${PORT}`));
+
