@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Downloader</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#000;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 16px}
+h1{font-size:28px;font-weight:600;margin-bottom:8px}
+p.sub{color:#888;font-size:14px;margin-bottom:32px}
+.tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;justify-content:center}
+.tab{padding:10px 20px;border:1px solid #333;border-radius:8px;background:transparent;color:#888;cursor:pointer;font-size:14px}
+.tab.active{background:#fff;color:#000;border-color:#fff;font-weight:600}
+.search-box{display:flex;width:100%;max-width:600px;gap:8px;margin-bottom:32px}
+.search-box input{flex:1;padding:14px 16px;border:1px solid #333;border-radius:8px;background:#111;color:#fff;font-size:15px;outline:none}
+.search-box button{padding:14px 28px;background:#fff;color:#000;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
+#results{width:100%;max-width:600px;display:flex;flex-direction:column;gap:12px}
+.card{background:#111;border:1px solid #222;border-radius:12px;padding:16px;display:flex;gap:12px;align-items:center}
+.card img{width:120px;height:68px;object-fit:cover;border-radius:8px;background:#222}
+.card .info{flex:1;min-width:0}
+.card .title{font-size:14px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .meta{font-size:12px;color:#888}
+.card a.dl{padding:10px 16px;background:#fff;color:#000;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap}
+.loading{text-align:center;color:#888;padding:20px}
+.error{background:#1a1a1a;border:1px solid #333;color:#ff6666;padding:12px;border-radius:8px;font-size:14px}
+</style>
+</head>
+<body>
+<h1>Downloader</h1>
+<p class="sub">Search and download from YouTube, Social and more</p>
+<div class="tabs">
+<button class="tab active" data-type="youtube">YouTube</button>
+<button class="tab" data-type="social">Social</button>
+<button class="tab" data-type="movie">Movie</button>
+<button class="tab" data-type="url">Direct URL</button>
+</div>
+<div class="search-box">
+<input type="text" id="q" placeholder="Type name or paste URL..." autocomplete="off">
+<button id="go" onclick="search()">Search</button>
+</div>
+<div id="results"></div>
+<script>
+let curType='youtube';
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');curType=t.dataset.type;}));
+document.getElementById('q').addEventListener('keypress',e=>{if(e.key==='Enter')search()});
+async function search(){
+const q=document.getElementById('q').value.trim();if(!q)return;
+const box=document.getElementById('results');box.innerHTML='<div class="loading">Searching...</div>';
+try{
+let url=q;if(curType!=='url'&&!q.startsWith('http')){url=curType==='youtube'?'ytsearch:'+q:q;}
+const r=await fetch('/info',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+const d=await r.json();if(d.error)throw new Error(d.error);
+const d2=await fetch('/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+const dl=await d2.json();
+box.innerHTML='<div class="card">'+(d.thumbnail?'<img src="'+d.thumbnail+'">':'')+'<div class="info"><div class="title">'+(d.title||'Unknown')+'</div><div class="meta">'+(d.uploader||'')+'</div></div><a class="dl" href="'+dl.url+'" target="_blank">Download</a></div>';
+}catch(e){box.innerHTML='<div class="error">'+e.message+'</div>';}
+}
+</script>
+</body>
+</html>
