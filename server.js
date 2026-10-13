@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const https = require("https");
+const http = require("http");
 const { execFile } = require("child_process");
 
 const app = express();
@@ -43,7 +45,7 @@ async function runSmart(args) {
 }
 
 app.get("/", (req, res) => {
-  res.json({ ok: true, service: "yt-dlp-api", version: "1.1.0" });
+  res.json({ ok: true, service: "yt-dlp-api", version: "1.2.0" });
 });
 
 app.post("/info", async (req, res) => {
@@ -51,7 +53,8 @@ app.post("/info", async (req, res) => {
   if (!url) return res.status(400).json({ error: "url required" });
   try {
     const out = await runSmart(["--dump-json", "--no-playlist", url]);
-    res.json(JSON.parse(out));
+    const info = JSON.parse(out);
+    res.json({ title: info.title, uploader: info.uploader, duration: info.duration, thumbnail: info.thumbnail, id: info.id, extractor: info.extractor });
   } catch (e) {
     res.status(500).json({ error: e.message.slice(0, 300) });
   }
@@ -65,6 +68,38 @@ app.post("/download", async (req, res) => {
     res.json({ url: out.trim().split("\n")[0] });
   } catch (e) {
     res.status(500).json({ error: e.message.slice(0, 300) });
+  }
+});
+
+app.get("/proxy", async (req, res) => {
+  const { url, filename } = req.query;
+  if (!url) return res.status(400).json({ error: "url required" });
+  try {
+    const mediaUrl = decodeURIComponent(url);
+    const name = filename || "video.mp4";
+    const client = mediaUrl.startsWith("https") ? https : http;
+    const proxyReq = client.get(mediaUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36",
+        "Referer": "https://www.tiktok.com/",
+      },
+    }, (proxyRes) => {
+      if ([301, 302, 307, 308].includes(proxyRes.statusCode) && proxyRes.headers.location) {
+        res.redirect("/proxy?url=" + encodeURIComponent(proxyRes.headers.location) + "&filename=" + encodeURIComponent(name));
+        return;
+      }
+      if (proxyRes.statusCode !== 200) {
+        return res.status(502).json({ error: "Upstream error: " + proxyRes.statusCode });
+      }
+      res.setHeader("Content-Disposition", `attachment; filename="${name.replace(/"/g, "")}"`);
+      if (proxyRes.headers["content-type"]) res.setHeader("Content-Type", proxyRes.headers["content-type"]);
+      if (proxyRes.headers["content-length"]) res.setHeader("Content-Length", proxyRes.headers["content-length"]);
+      proxyRes.pipe(res);
+    });
+    proxyReq.on("error", (e) => res.status(502).json({ error: e.message.slice(0, 200) }));
+    proxyReq.setTimeout(120000, () => { proxyReq.destroy(); res.status(504).json({ error: "Upstream timeout" }); });
+  } catch (e) {
+    res.status(500).json({ error: e.message.slice(0, 200) });
   }
 });
 
